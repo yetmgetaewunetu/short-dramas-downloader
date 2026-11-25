@@ -21,6 +21,14 @@ class BasePlatform(ABC):
     def __init__(self, client: Optional[HttpClient] = None):
         self.http = client or http
 
+    @property
+    def goodbos_token(self) -> str:
+        """Returns optional user-configured Goodbos token or the default fallback."""
+        auth = getattr(self.http, "auth", None)
+        if auth and auth.goodbos_token:
+            return auth.goodbos_token
+        return GOODBOS_TOKEN
+
     @abstractmethod
     def can_handle(self, url: str) -> bool:
         """Determines if this platform can handle the given URL or identifier."""

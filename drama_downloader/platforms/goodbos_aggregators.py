@@ -40,7 +40,7 @@ class DramaWavePlatform(BasePlatform):
         if not dw_id:
             raise ValueError(f"Could not read DramaWave ID from: {url}")
 
-        resp = self.http.get(f"{self.BASE_URL}/allepisodes", params={"id": dw_id, "lang": "en", "code": GOODBOS_TOKEN})
+        resp = self.http.get(f"{self.BASE_URL}/allepisodes", params={"id": dw_id, "lang": "en", "code": self.goodbos_token})
         data = resp.json().get("data") or {}
         items = data.get("episodes") or []
 
@@ -102,7 +102,7 @@ class RaptDramaPlatform(BasePlatform):
         resp = self.http.get(
             f"{self.BASE_URL}/episodes",
             params={"id": rd_id, "lang": "en"},
-            headers={"x-token": GOODBOS_TOKEN},
+            headers={"x-token": self.goodbos_token},
         )
         data = resp.json().get("data") or {}
         items = data.get("episodes") or []
@@ -162,7 +162,7 @@ class FlexTVPlatform(BasePlatform):
         if not fx_id:
             raise ValueError(f"Could not read FlexTV ID from: {url}")
 
-        resp = self.http.get(f"{self.BASE_URL}/allepisodes", params={"id": fx_id, "lang": "en", "code": GOODBOS_TOKEN})
+        resp = self.http.get(f"{self.BASE_URL}/allepisodes", params={"id": fx_id, "lang": "en", "code": self.goodbos_token})
         data = resp.json().get("data") or {}
         items = data.get("episodes") or []
 

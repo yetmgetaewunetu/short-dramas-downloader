@@ -47,7 +47,7 @@ class FreeReelsPlatform(BasePlatform):
         if not fr_key:
             raise ValueError(f"Could not read FreeReels drama ID from: {url}")
 
-        params = {"key": fr_key, "lang": "en", "code": GOODBOS_TOKEN}
+        params = {"key": fr_key, "lang": "en", "code": self.goodbos_token}
         resp = self.http.get(f"{self.BASE_URL}/episodes", params=params)
         if resp.status_code != 200:
             raise ValueError(f"FreeReels API error: HTTP {resp.status_code}")

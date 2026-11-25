@@ -5,6 +5,7 @@ Platform registry, automatic detection router, and unified extraction API.
 """
 
 from typing import Optional, List, Type
+from ..client import HttpClient
 from .base import BasePlatform
 from .dramabox import DramaBoxPlatform
 from .goodshort import GoodShortPlatform
@@ -42,48 +43,56 @@ def get_all_platforms() -> List[BasePlatform]:
     return _INSTANCES
 
 
-def get_platform(name_or_id: str) -> Optional[BasePlatform]:
+def get_platform(name_or_id: str, client: Optional[HttpClient] = None) -> Optional[BasePlatform]:
     """Finds a platform by platform_id or display_name."""
     target = name_or_id.lower().strip()
     for p in _INSTANCES:
         if p.platform_id.lower() == target or p.display_name.lower() == target:
-            return p
+            return type(p)(client=client) if client is not None else p
     return None
 
 
-def detect_platform(url_or_id: str) -> Optional[BasePlatform]:
+def detect_platform(url_or_id: str, client: Optional[HttpClient] = None) -> Optional[BasePlatform]:
     """Detects which platform handles the given URL or identifier."""
     if not url_or_id:
         return None
     for p in _INSTANCES:
         if p.can_handle(url_or_id):
-            return p
+            return type(p)(client=client) if client is not None else p
     return None
 
 
-def load_series(url_or_id: str, platform_hint: Optional[str] = None) -> "Series":
+def load_series(
+    url_or_id: str,
+    platform_hint: Optional[str] = None,
+    client: Optional[HttpClient] = None,
+) -> "Series":
     """Unified entrypoint: auto-detects platform and loads Series metadata."""
     platform = None
     if platform_hint:
-        platform = get_platform(platform_hint)
+        platform = get_platform(platform_hint, client=client)
     if not platform:
-        platform = detect_platform(url_or_id)
+        platform = detect_platform(url_or_id, client=client)
     if not platform:
         raise ValueError(f"No platform extractor found to handle: {url_or_id}")
 
     return platform.load_series(url_or_id)
 
 
-def get_video_url(episode: "Episode", platform_hint: Optional[str] = None) -> Optional[str]:
+def get_video_url(
+    episode: "Episode",
+    platform_hint: Optional[str] = None,
+    client: Optional[HttpClient] = None,
+) -> Optional[str]:
     """Resolves direct stream URL for an episode."""
     if episode.direct_url:
         return episode.direct_url
 
     platform = None
     if platform_hint:
-        platform = get_platform(platform_hint)
+        platform = get_platform(platform_hint, client=client)
     if not platform:
-        platform = detect_platform(episode.url)
+        platform = detect_platform(episode.url, client=client)
 
     if platform:
         return platform.get_video_url(episode)

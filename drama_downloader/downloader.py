@@ -104,7 +104,7 @@ class DramaDownloader:
         progress_callback: Optional[Callable[[DownloadProgress], None]] = None,
     ) -> str:
         """Downloads a single episode to the output directory and returns the file path."""
-        stream_url = episode.direct_url or get_video_url(episode)
+        stream_url = episode.direct_url or get_video_url(episode, client=self.http)
         if not stream_url:
             raise ValueError(f"Could not resolve stream URL for Episode {episode.num}")
 
@@ -184,14 +184,31 @@ class DramaDownloader:
         self,
         series: Series,
         episodes_range: Optional[List[int]] = None,
+        skip_locked: bool = True,
         on_episode_start: Optional[Callable[[Episode], None]] = None,
         on_episode_done: Optional[Callable[[Episode, str], None]] = None,
         on_episode_error: Optional[Callable[[Episode, Exception], None]] = None,
+        on_episode_skipped: Optional[Callable[[Episode], None]] = None,
     ) -> List[str]:
-        """Batch downloads multiple episodes in a series using thread pool."""
+        """Batch downloads multiple episodes in a series using thread pool.
+
+        Episodes with no resolvable stream (locked and not already unlocked by
+        the extractor) are skipped up front instead of being submitted and
+        failing, unless skip_locked=False.
+        """
         target_episodes = series.episodes
         if episodes_range:
             target_episodes = [ep for ep in target_episodes if ep.num in episodes_range]
+
+        if skip_locked:
+            runnable_episodes = []
+            for ep in target_episodes:
+                if ep.locked and not ep.direct_url:
+                    if on_episode_skipped:
+                        on_episode_skipped(ep)
+                else:
+                    runnable_episodes.append(ep)
+            target_episodes = runnable_episodes
 
         completed_paths = []
 

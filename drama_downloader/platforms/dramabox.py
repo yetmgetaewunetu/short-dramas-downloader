@@ -6,10 +6,26 @@ Extractor for DramaBox (dramaboxdb.com, webfic, goodbos aggregator).
 
 import json
 import re
+import time
 from typing import Optional, List, Dict, Any
+from urllib.parse import parse_qs, urlparse
 from .base import BasePlatform, GOODBOS_TOKEN
 from ..models import Series, Episode, Subtitle, CatalogResult, CatalogItem
 from ..crypto.dramabox_rsa import sign_dramabox
+
+
+def _is_signed_url_expired(url: Optional[str]) -> bool:
+    """Returns True if a signed CDN URL carries an Expires timestamp already in the past."""
+    if not url:
+        return False
+    try:
+        qs = parse_qs(urlparse(url).query)
+        exp_vals = qs.get("Expires") or qs.get("expires")
+        if exp_vals and exp_vals[0].isdigit():
+            return int(exp_vals[0]) <= int(time.time())
+    except Exception:
+        pass
+    return False
 
 
 class DramaBoxPlatform(BasePlatform):
@@ -80,7 +96,7 @@ class DramaBoxPlatform(BasePlatform):
                 gb_resp = self.http.get(
                     f"{self.GOODBOS_BASE}/api/dramabox/allepisode",
                     params={"bookId": book_id},
-                    headers={"User-Agent": "okhttp/4.10.0", "x-token": GOODBOS_TOKEN},
+                    headers={"User-Agent": "okhttp/4.10.0", "x-token": self.goodbos_token},
                 )
                 if gb_resp.status_code == 200:
                     gb_episodes = gb_resp.json()
@@ -97,6 +113,8 @@ class DramaBoxPlatform(BasePlatform):
                                     or item.get("videoUrl1080")
                                     or item.get("videoUrl540")
                                 )
+                                if _is_signed_url_expired(v_url):
+                                    v_url = None
                                 episodes.append(
                                     Episode(
                                         num=ep_num,
@@ -118,7 +136,7 @@ class DramaBoxPlatform(BasePlatform):
                                             or gb_item.get("videoUrl1080")
                                             or gb_item.get("videoUrl540")
                                         )
-                                        if v_url:
+                                        if v_url and not _is_signed_url_expired(v_url):
                                             ep.direct_url = v_url
                                             ep.locked = False
             except Exception:

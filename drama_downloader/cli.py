@@ -7,6 +7,8 @@ Command-line interface for Drama Downloader.
 import argparse
 import sys
 from typing import List
+from .auth import AuthConfig
+from .client import http
 from .models import Series, Episode
 from .platforms import (
     load_series,
@@ -75,28 +77,46 @@ def cmd_download(args):
             selected_nums = parse_range(args.episodes, len(series.episodes))
             print(f"[*] Downloading selected episodes: {selected_nums}")
         else:
-            print(f"[*] Downloading all available episodes (1 to {len(series.episodes)})")
+            print(f"[*] Downloading all unlocked episodes (1 to {len(series.episodes)})")
 
         dl = DramaDownloader(
             output_dir=args.output,
             concurrency=args.concurrency,
         )
 
+        done_count = 0
+        skipped_count = 0
+        failed_count = 0
+
         def on_done(ep: Episode, path: str):
+            nonlocal done_count
+            done_count += 1
             print(f"[+] Downloaded: EP{ep.num:02d} -> {path}")
 
         def on_error(ep: Episode, err: Exception):
+            nonlocal failed_count
+            failed_count += 1
             print(f"[x] Failed EP{ep.num:02d}: {err}")
+
+        def on_skipped(ep: Episode):
+            nonlocal skipped_count
+            skipped_count += 1
+            print(f"[!] Skipped EP{ep.num:02d} (locked, no stream available): {ep.title}")
 
         print(f"[*] Output directory: {dl.output_dir}")
         print("[*] Starting download...")
         dl.download_series(
             series,
             episodes_range=selected_nums,
+            skip_locked=not args.include_locked,
             on_episode_done=on_done,
             on_episode_error=on_error,
+            on_episode_skipped=on_skipped,
         )
-        print("\n[✔] Download batch finished!")
+        print(
+            f"\n[✔] Download batch finished! "
+            f"Downloaded: {done_count}, Skipped (locked): {skipped_count}, Failed: {failed_count}"
+        )
     except Exception as e:
         print(f"[!] Error: {e}")
         sys.exit(1)
@@ -128,27 +148,68 @@ def cmd_platforms(args):
     print("=" * 50 + "\n")
 
 
+def _apply_cli_auth(args) -> None:
+    auth = AuthConfig.from_cli(
+        cookies_file=getattr(args, "cookies", None),
+        cookie_header=getattr(args, "cookie", None),
+        header_list=getattr(args, "header", None),
+        auth_config_file=getattr(args, "auth_config", None),
+        goodbos_token=getattr(args, "goodbos_token", None),
+    )
+    if not auth.is_empty():
+        http.configure_auth(auth)
+
+
 def main():
+    auth_parent = argparse.ArgumentParser(add_help=False)
+    auth_parent.add_argument(
+        "--cookies",
+        help="Optional path to Netscape cookies.txt or JSON cookies file",
+    )
+    auth_parent.add_argument(
+        "--cookie",
+        help="Optional raw Cookie header string (e.g. 'session=abc; uid=123')",
+    )
+    auth_parent.add_argument(
+        "-H",
+        "--header",
+        action="append",
+        help="Optional custom HTTP header (repeatable, e.g. 'Authorization: Bearer ...')",
+    )
+    auth_parent.add_argument(
+        "--auth-config",
+        help="Optional path to JSON auth config file (cookies, headers, per-platform headers)",
+    )
+    auth_parent.add_argument(
+        "--goodbos-token",
+        help="Optional custom Goodbos token override",
+    )
+
     parser = argparse.ArgumentParser(
         prog="drama_downloader",
         description="Multi-Platform Short Drama Extractor and Downloader Module",
     )
     subparsers = parser.add_subparsers(dest="command", required=True)
 
-    p_info = subparsers.add_parser("info", help="Inspect series metadata and episode list")
+    p_info = subparsers.add_parser("info", parents=[auth_parent], help="Inspect series metadata and episode list")
     p_info.add_argument("target", help="URL or Series ID")
     p_info.add_argument("-p", "--platform", help="Explicit platform name/ID")
     p_info.set_defaults(func=cmd_info)
 
-    p_dl = subparsers.add_parser("download", help="Download series or episodes")
+    p_dl = subparsers.add_parser("download", parents=[auth_parent], help="Download series or episodes")
     p_dl.add_argument("target", help="URL or Series ID")
     p_dl.add_argument("-p", "--platform", help="Explicit platform name/ID")
     p_dl.add_argument("-e", "--episodes", help="Episode range (e.g. 1-10,12,15)")
     p_dl.add_argument("-o", "--output", default="./downloads", help="Output directory (default: ./downloads)")
     p_dl.add_argument("-c", "--concurrency", type=int, default=2, help="Concurrency workers (default: 2)")
+    p_dl.add_argument(
+        "--include-locked",
+        action="store_true",
+        help="Attempt locked episodes too instead of skipping them (will fail unless a stream URL was resolved)",
+    )
     p_dl.set_defaults(func=cmd_download)
 
-    p_cat = subparsers.add_parser("catalog", help="Browse catalog of short dramas")
+    p_cat = subparsers.add_parser("catalog", parents=[auth_parent], help="Browse catalog of short dramas")
     p_cat.add_argument("platform", help="Platform ID (e.g. dramabox, shortmax, kisskh)")
     p_cat.add_argument("--page", type=int, default=1, help="Page number")
     p_cat.add_argument("-q", "--query", help="Search keyword")
@@ -159,6 +220,11 @@ def main():
     p_plat.set_defaults(func=cmd_platforms)
 
     args = parser.parse_args()
+    try:
+        _apply_cli_auth(args)
+    except Exception as e:
+        print(f"[!] Auth configuration error: {e}")
+        sys.exit(1)
     args.func(args)
 
 

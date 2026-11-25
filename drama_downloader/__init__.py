@@ -13,6 +13,7 @@ from .platforms import (
     get_all_platforms,
     get_video_url,
 )
+from .auth import AuthConfig, load_cookies_into_session, parse_cookie_header, parse_header_string
 from .client import http, HttpClient
 from .crypto import sign_dramabox, derive_content_key, decrypt_spade_url
 
@@ -33,6 +34,10 @@ __all__ = [
     "get_video_url",
     "http",
     "HttpClient",
+    "AuthConfig",
+    "load_cookies_into_session",
+    "parse_cookie_header",
+    "parse_header_string",
     "sign_dramabox",
     "derive_content_key",
     "decrypt_spade_url",

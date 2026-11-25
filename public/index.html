@@ -1,0 +1,844 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>DramaDownloader — Direct-to-PC Short Drama Toolkit</title>
+  <style>
+    :root {
+      --bg: #0b0f19;
+      --surface: #131a2a;
+      --surface-2: #1b2438;
+      --border: #26314a;
+      --text: #e5e9f0;
+      --muted: #94a3b8;
+      --accent: #6366f1;
+      --accent-hover: #4f46e5;
+      --green: #10b981;
+      --amber: #f59e0b;
+      --red: #ef4444;
+      --radius: 10px;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.5;
+    }
+    .container { max-width: 1080px; margin: 0 auto; padding: 24px 16px 64px; }
+    header {
+      display: flex; flex-wrap: wrap; gap: 12px; align-items: center; justify-content: space-between;
+      margin-bottom: 20px; padding-bottom: 16px; border-bottom: 1px solid var(--border);
+    }
+    h1 { margin: 0; font-size: 1.4rem; display: flex; align-items: center; gap: 10px; }
+    .subtitle { color: var(--muted); font-size: 0.9rem; margin-top: 2px; }
+    .tabs { display: flex; gap: 8px; flex-wrap: wrap; }
+    .tab-btn {
+      background: var(--surface); color: var(--muted); border: 1px solid var(--border);
+      padding: 8px 14px; border-radius: 8px; cursor: pointer; font-weight: 500;
+    }
+    .tab-btn.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+    .card {
+      background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+      padding: 18px; margin-bottom: 16px;
+    }
+    .row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+    input[type="text"], input[type="number"], select, textarea {
+      background: var(--surface-2); color: var(--text); border: 1px solid var(--border);
+      border-radius: 8px; padding: 10px 12px; font-size: 0.95rem; outline: none;
+    }
+    input:focus, select:focus, textarea:focus { border-color: var(--accent); }
+    .grow { flex: 1; min-width: 220px; }
+    button {
+      background: var(--accent); color: #fff; border: none; border-radius: 8px;
+      padding: 10px 16px; font-size: 0.92rem; font-weight: 600; cursor: pointer;
+    }
+    button:hover { background: var(--accent-hover); }
+    button:disabled { opacity: 0.5; cursor: not-allowed; }
+    button.secondary { background: var(--surface-2); border: 1px solid var(--border); color: var(--text); }
+    button.secondary:hover { border-color: var(--accent); }
+    button.small { padding: 6px 10px; font-size: 0.82rem; }
+    .badge {
+      display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 0.74rem; font-weight: 600;
+    }
+    .badge.free { background: rgba(16, 185, 129, 0.15); color: var(--green); }
+    .badge.locked { background: rgba(239, 68, 68, 0.15); color: var(--red); }
+    .badge.info { background: rgba(99, 102, 241, 0.18); color: #a5b4fc; }
+    .badge.warn { background: rgba(245, 158, 11, 0.18); color: var(--amber); }
+    .series-header { display: flex; gap: 16px; flex-wrap: wrap; }
+    .series-cover {
+      width: 110px; height: 150px; object-fit: cover; border-radius: 8px;
+      background: var(--surface-2); border: 1px solid var(--border);
+    }
+    table { width: 100%; border-collapse: collapse; margin-top: 12px; }
+    th, td { text-align: left; padding: 10px 8px; border-bottom: 1px solid var(--border); font-size: 0.9rem; }
+    th { color: var(--muted); font-weight: 600; }
+    .progress-wrap {
+      width: 100%; height: 10px; background: var(--surface-2); border-radius: 999px; overflow: hidden; margin: 10px 0;
+    }
+    .progress-bar { height: 100%; width: 0%; background: var(--green); transition: width 0.2s; }
+    .log {
+      background: #080b12; border: 1px solid var(--border); border-radius: 8px;
+      padding: 10px 12px; font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+      font-size: 0.82rem; max-height: 180px; overflow-y: auto; white-space: pre-wrap; color: var(--muted);
+    }
+    .catalog-grid {
+      display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 14px; margin-top: 14px;
+    }
+    .catalog-card {
+      background: var(--surface-2); border: 1px solid var(--border); border-radius: 10px;
+      padding: 12px; display: flex; flex-direction: column; gap: 8px;
+    }
+    .catalog-card img { width: 100%; height: 220px; object-fit: cover; border-radius: 6px; background: var(--surface); }
+    .hidden { display: none !important; }
+    .hint { color: var(--muted); font-size: 0.84rem; margin: 6px 0 0; }
+    label.field { display: block; font-size: 0.86rem; color: var(--muted); margin: 10px 0 4px; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <div>
+        <h1>DramaDownloader</h1>
+        <div class="subtitle">Resolves streams via API and downloads directly from the CDN to your PC.</div>
+      </div>
+      <div class="tabs">
+        <button class="tab-btn active" data-tab="inspect">Inspect &amp; Download</button>
+        <button class="tab-btn" data-tab="catalog">Browse Catalog</button>
+        <button class="tab-btn" data-tab="auth">Auth (Optional) <span id="auth-status-badge" class="badge info hidden">ON</span></button>
+      </div>
+    </header>
+
+    <!-- INSPECT & DOWNLOAD TAB -->
+    <section id="tab-inspect">
+      <div class="card">
+        <div class="row">
+          <input id="target-input" class="grow" type="text" placeholder="Paste drama URL or ID (e.g. https://www.dramaboxdb.com/movie/42000001234/drama)" />
+          <select id="platform-select">
+            <option value="">Auto-detect platform</option>
+          </select>
+          <button id="inspect-btn">Inspect</button>
+        </div>
+        <p id="inspect-error" class="hint" style="color: var(--red);"></p>
+      </div>
+
+      <div id="series-panel" class="card hidden">
+        <div class="series-header">
+          <img id="series-cover" class="series-cover" alt="Cover" />
+          <div class="grow">
+            <div class="row" style="justify-content: space-between;">
+              <h2 id="series-title" style="margin: 0;"></h2>
+              <span id="series-platform" class="badge info"></span>
+            </div>
+            <p id="series-stats" class="hint"></p>
+            <p id="series-desc" style="margin: 8px 0 0; font-size: 0.9rem; color: var(--muted);"></p>
+          </div>
+        </div>
+
+        <hr style="border: 0; border-top: 1px solid var(--border); margin: 16px 0;" />
+
+        <div class="row">
+          <input id="range-input" type="text" placeholder="Range e.g. 1-5, 8" style="width: 170px;" />
+          <button id="apply-range-btn" class="secondary small">Select Range</button>
+          <button id="select-free-btn" class="secondary small">Select All Free</button>
+          <button id="clear-sel-btn" class="secondary small">Clear</button>
+          <label style="font-size: 0.86rem; display: flex; align-items: center; gap: 6px; margin-left: auto;">
+            <input type="checkbox" id="dl-subs-check" checked /> Also download .srt subtitles
+          </label>
+        </div>
+
+        <div class="row" style="margin-top: 10px;">
+          <button id="pick-dir-btn" class="secondary small">Pick PC Folder (Chrome/Edge)</button>
+          <span id="dir-label" class="hint" style="margin: 0;">Using standard browser downloads</span>
+          <div class="row" style="margin-left: auto; gap: 8px;">
+            <button id="download-all-free-btn" class="secondary">Download All Free</button>
+            <button id="batch-zip-btn" class="secondary hidden">Download Selected as .zip</button>
+            <button id="batch-dl-btn">Download Selected to PC</button>
+          </div>
+        </div>
+
+        <div id="batch-status" class="hidden" style="margin-top: 12px;">
+          <div class="progress-wrap"><div id="batch-progress" class="progress-bar"></div></div>
+          <div id="batch-log" class="log"></div>
+        </div>
+
+        <table>
+          <thead>
+            <tr>
+              <th style="width: 32px;"><input type="checkbox" id="select-all-check" /></th>
+              <th style="width: 70px;">EP</th>
+              <th>Title</th>
+              <th style="width: 160px;">Status</th>
+              <th style="width: 280px;">Actions (Direct to PC)</th>
+            </tr>
+          </thead>
+          <tbody id="episode-tbody"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- CATALOG TAB -->
+    <section id="tab-catalog" class="card hidden">
+      <div class="row">
+        <select id="cat-platform"></select>
+        <input id="cat-query" class="grow" type="text" placeholder="Search keyword (optional)" />
+        <input id="cat-page" type="number" value="1" min="1" style="width: 85px;" />
+        <button id="cat-search-btn">Browse</button>
+      </div>
+      <p id="cat-error" class="hint" style="color: var(--red);"></p>
+      <div id="cat-grid" class="catalog-grid"></div>
+    </section>
+
+    <!-- AUTH TAB -->
+    <section id="tab-auth" class="card hidden">
+      <h2 style="margin-top: 0; font-size: 1.15rem;">Optional Custom Authentication</h2>
+      <p class="hint">
+        All fields are optional and kept only in your browser. Credentials are sent only with your requests and never stored on the server.
+      </p>
+
+      <label class="field">Upload Netscape <code>cookies.txt</code> or JSON cookies file</label>
+      <div class="row">
+        <input id="auth-file" type="file" accept=".txt,.json" />
+        <span id="auth-file-status" class="hint" style="margin: 0;"></span>
+      </div>
+
+      <label class="field">Raw <code>Cookie</code> header (e.g. <code>session=abc; uid=123</code>)</label>
+      <input id="auth-cookie-header" type="text" style="width: 100%;" placeholder="Optional Cookie header value" />
+
+      <label class="field">Global HTTP Headers (<code>Name: Value</code>, one per line)</label>
+      <textarea id="auth-headers" rows="3" style="width: 100%;" placeholder="Authorization: Bearer ..."></textarea>
+
+      <label class="field">Per-Platform Headers JSON (optional, e.g. <code>{"dramabox": {"Authorization": "Bearer ..."}}</code>)</label>
+      <textarea id="auth-platform-headers" rows="3" style="width: 100%;" placeholder='{"dramabox": {"Authorization": "Bearer ..."}}'></textarea>
+
+      <label class="field">Custom Goodbos Token (optional override)</label>
+      <input id="auth-goodbos-token" type="text" style="width: 100%;" placeholder="Optional x-token / code override" />
+
+      <div class="row" style="margin-top: 14px;">
+        <button id="save-auth-btn">Apply &amp; Save in Browser</button>
+        <button id="clear-auth-btn" class="secondary">Clear Auth</button>
+      </div>
+      <p id="auth-msg" class="hint"></p>
+    </section>
+  </div>
+
+  <script>
+    const AUTH_KEY = "drama_dl_auth_v1";
+    let currentSeries = null;
+    let pickedDirHandle = null;
+    let uploadedCookiesText = "";
+    let canProxyDownload = false;
+
+    function loadAuthState() {
+      try {
+        const raw = localStorage.getItem(AUTH_KEY);
+        if (!raw) return null;
+        return JSON.parse(raw);
+      } catch {
+        return null;
+      }
+    }
+
+    function getActiveAuthPayload() {
+      const state = loadAuthState();
+      if (!state) return null;
+      const payload = {};
+      if (state.cookies_text) payload.cookies_text = state.cookies_text;
+      if (state.cookie_header) payload.cookie_header = state.cookie_header;
+      if (state.headers && Object.keys(state.headers).length) payload.headers = state.headers;
+      if (state.platform_headers && Object.keys(state.platform_headers).length) payload.platform_headers = state.platform_headers;
+      if (state.goodbos_token) payload.goodbos_token = state.goodbos_token;
+      return Object.keys(payload).length ? payload : null;
+    }
+
+    function refreshAuthUI() {
+      const state = loadAuthState();
+      const badge = document.getElementById("auth-status-badge");
+      if (state && getActiveAuthPayload()) {
+        badge.classList.remove("hidden");
+        uploadedCookiesText = state.cookies_text || "";
+        document.getElementById("auth-file-status").textContent = uploadedCookiesText ? "Cookie file loaded in browser" : "";
+        document.getElementById("auth-cookie-header").value = state.cookie_header || "";
+        document.getElementById("auth-headers").value = Object.entries(state.headers || {}).map(([k, v]) => `${k}: ${v}`).join("\n");
+        document.getElementById("auth-platform-headers").value = Object.keys(state.platform_headers || {}).length
+          ? JSON.stringify(state.platform_headers, null, 2)
+          : "";
+        document.getElementById("auth-goodbos-token").value = state.goodbos_token || "";
+      } else {
+        badge.classList.add("hidden");
+      }
+    }
+
+    document.querySelectorAll(".tab-btn").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        document.querySelectorAll(".tab-btn").forEach((b) => b.classList.remove("active"));
+        btn.classList.add("active");
+        const target = btn.dataset.tab;
+        ["inspect", "catalog", "auth"].forEach((t) => {
+          document.getElementById(`tab-${t}`).classList.toggle("hidden", t !== target);
+        });
+      });
+    });
+
+    async function apiPost(path, body) {
+      const res = await fetch(path, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      if (!res.ok) {
+        let msg = `HTTP ${res.status}`;
+        try {
+          const err = await res.json();
+          if (err.detail) msg = err.detail;
+        } catch {}
+        throw new Error(msg);
+      }
+      return res;
+    }
+
+    async function initPlatforms() {
+      try {
+        const [platRes, healthRes] = await Promise.all([
+          fetch("/api/platforms"),
+          fetch("/api/health").catch(() => null),
+        ]);
+        if (healthRes && healthRes.ok) {
+          const h = await healthRes.json();
+          canProxyDownload = Boolean(h.proxy_download);
+          document.getElementById("batch-zip-btn").classList.toggle("hidden", !canProxyDownload);
+        }
+        const data = await platRes.json();
+        const sel = document.getElementById("platform-select");
+        const catSel = document.getElementById("cat-platform");
+        for (const p of data.platforms || []) {
+          const opt1 = document.createElement("option");
+          opt1.value = p.id;
+          opt1.textContent = `${p.name} (${p.id})`;
+          sel.appendChild(opt1);
+
+          const opt2 = opt1.cloneNode(true);
+          catSel.appendChild(opt2);
+        }
+      } catch (e) {
+        console.error("Failed to load platforms", e);
+      }
+    }
+
+    function sanitizeFilename(name) {
+      return (name || "video").replace(/[<>:"/\\|?*\x00-\x1f]/g, " ").replace(/\s+/g, " ").trim().slice(0, 100) || "video";
+    }
+
+    function isHlsUrl(url) {
+      return typeof url === "string" && url.toLowerCase().includes(".m3u8");
+    }
+
+    function getExpiredTime(url) {
+      try {
+        const u = new URL(url);
+        const exp = u.searchParams.get("Expires") || u.searchParams.get("expires");
+        if (exp && /^\d+$/.test(exp)) {
+          const expMs = Number(exp) * 1000;
+          if (expMs <= Date.now()) return new Date(expMs).toISOString();
+        }
+      } catch {}
+      return null;
+    }
+
+    function appendLog(msg) {
+      const box = document.getElementById("batch-log");
+      box.textContent += msg + "\n";
+      box.scrollTop = box.scrollHeight;
+    }
+
+    async function saveBlobToPc(blob, filename) {
+      if (pickedDirHandle) {
+        const fileHandle = await pickedDirHandle.getFileHandle(filename, { create: true });
+        const writable = await fileHandle.createWritable();
+        await writable.write(blob);
+        await writable.close();
+        return;
+      }
+      const objUrl = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = objUrl;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(objUrl), 15000);
+    }
+
+    async function resolveEpisode(ep) {
+      if (ep.direct_url) return ep;
+      const res = await apiPost("/api/episode-url", {
+        num: ep.num,
+        title: ep.title,
+        url: ep.url,
+        direct_url: ep.direct_url,
+        extra: ep.extra || {},
+        platform: currentSeries?.platform || null,
+        auth: getActiveAuthPayload(),
+      });
+      const data = await res.json();
+      ep.direct_url = data.direct_url;
+      if (data.subs && data.subs.length) ep.subs = data.subs;
+      ep.locked = data.locked;
+      return ep;
+    }
+
+    async function downloadSubtitleToPc(sub, epPrefix) {
+      const filename = `${epPrefix}_${sanitizeFilename(sub.lang || "en")}.srt`;
+      const res = await apiPost("/api/subtitle", {
+        url: sub.url,
+        lang: sub.lang || "en",
+        filename,
+        auth: getActiveAuthPayload(),
+      });
+      const blob = await res.blob();
+      await saveBlobToPc(blob, filename);
+    }
+
+    async function downloadEpisodeToPc(ep, includeSubs = true) {
+      const resolved = await resolveEpisode(ep);
+      const streamUrl = resolved.direct_url;
+      if (!streamUrl) throw new Error(`No stream URL for EP${ep.num}`);
+
+      const epPrefix = `EP${String(ep.num).padStart(2, "0")}`;
+      const filename = `${epPrefix} - ${sanitizeFilename(ep.title)}.mp4`;
+
+      const expiredAt = getExpiredTime(streamUrl);
+      if (expiredAt) {
+        throw new Error(`Signed CDN URL expired at ${expiredAt}. Re-inspect the series or check if this episode came from a stale cache.`);
+      }
+
+      if (isHlsUrl(streamUrl)) {
+        // Browsers cannot natively mux HLS segments to .mp4 without ffmpeg; open/copy the playlist URL.
+        const a = document.createElement("a");
+        a.href = streamUrl;
+        a.target = "_blank";
+        a.rel = "noopener noreferrer";
+        a.click();
+        appendLog(`[!] ${epPrefix} is an HLS (.m3u8) stream — opened stream URL (use ffmpeg/yt-dlp or local CLI to merge into MP4).`);
+      } else {
+        let resp;
+        try {
+          resp = await fetch(streamUrl, { mode: "cors" });
+        } catch (corsErr) {
+          resp = null;
+          if (canProxyDownload) {
+            const proxyUrl = `/api/proxy-download?url=${encodeURIComponent(streamUrl)}&filename=${encodeURIComponent(filename)}`;
+            if (pickedDirHandle) {
+              const pResp = await fetch(proxyUrl);
+              if (!pResp.ok) throw new Error(`Download failed: HTTP ${pResp.status}`);
+              await saveBlobToPc(await pResp.blob(), filename);
+            } else {
+              const a = document.createElement("a");
+              a.href = proxyUrl;
+              a.download = filename;
+              document.body.appendChild(a);
+              a.click();
+              a.remove();
+            }
+          } else {
+            // Vercel serverless cannot proxy >4.5MB videos; open direct CDN link as fallback.
+            const a = document.createElement("a");
+            a.href = streamUrl;
+            a.download = filename;
+            a.target = "_blank";
+            a.rel = "noopener noreferrer";
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+            appendLog(`[i] ${epPrefix}: CDN blocks browser CORS & omits Content-Disposition, so it opened in a new tab (use Save Video As / ⋮ -> Download).`);
+          }
+        }
+        if (resp) {
+          if (!resp.ok) throw new Error(`CDN HTTP ${resp.status}`);
+          const blob = await resp.blob();
+          await saveBlobToPc(blob, filename);
+        }
+      }
+
+      if (includeSubs && Array.isArray(resolved.subs)) {
+        for (const sub of resolved.subs) {
+          try {
+            await downloadSubtitleToPc(sub, epPrefix);
+          } catch (e) {
+            appendLog(`[!] ${epPrefix} subtitle (${sub.lang}) failed: ${e.message}`);
+          }
+        }
+      }
+    }
+
+    function renderSeries(series) {
+      currentSeries = series;
+      document.getElementById("series-panel").classList.remove("hidden");
+      document.getElementById("series-title").textContent = series.name;
+      document.getElementById("series-platform").textContent = (series.platform || "").toUpperCase();
+      document.getElementById("series-stats").textContent =
+        `ID: ${series.series_id} | Episodes: ${series.episode_count} (Accessible: ${series.accessible_count})`;
+      document.getElementById("series-desc").textContent = series.description || "";
+      const coverEl = document.getElementById("series-cover");
+      if (series.cover) {
+        coverEl.src = series.cover;
+        coverEl.classList.remove("hidden");
+      } else {
+        coverEl.classList.add("hidden");
+      }
+
+      const tbody = document.getElementById("episode-tbody");
+      tbody.innerHTML = "";
+      for (const ep of series.episodes || []) {
+        const tr = document.createElement("tr");
+        const statusBadge = ep.locked
+          ? `<span class="badge locked">LOCKED</span>`
+          : `<span class="badge free">FREE</span>`;
+        const streamBadge = ep.direct_url
+          ? (isHlsUrl(ep.direct_url) ? `<span class="badge warn">HLS</span>` : `<span class="badge info">MP4</span>`)
+          : `<span class="badge">LAZY</span>`;
+        const subCount = (ep.subs || []).length ? `<span class="badge info">${ep.subs.length} SUB</span>` : "";
+
+        tr.innerHTML = `
+          <td><input type="checkbox" class="ep-check" data-num="${ep.num}" ${ep.locked ? "" : "checked"} /></td>
+          <td>EP${String(ep.num).padStart(3, "0")}</td>
+          <td>${ep.title}</td>
+          <td>${statusBadge} ${streamBadge} ${subCount}</td>
+          <td>
+            <div class="row" style="gap: 6px;">
+              <button class="small dl-one-btn">Download</button>
+              <button class="small secondary copy-url-btn">Copy URL</button>
+              ${(ep.subs || []).length ? `<button class="small secondary dl-sub-btn">.srt</button>` : ""}
+            </div>
+          </td>
+        `;
+
+        tr.querySelector(".dl-one-btn").addEventListener("click", async (ev) => {
+          const btn = ev.target;
+          btn.disabled = true;
+          btn.textContent = "Resolving...";
+          document.getElementById("batch-status").classList.remove("hidden");
+          try {
+            await downloadEpisodeToPc(ep, document.getElementById("dl-subs-check").checked);
+            appendLog(`[+] EP${String(ep.num).padStart(2, "0")} download triggered.`);
+          } catch (e) {
+            appendLog(`[x] EP${String(ep.num).padStart(2, "0")}: ${e.message}`);
+          } finally {
+            btn.disabled = false;
+            btn.textContent = "Download";
+          }
+        });
+
+        tr.querySelector(".copy-url-btn").addEventListener("click", async (ev) => {
+          const btn = ev.target;
+          try {
+            const resolved = await resolveEpisode(ep);
+            await navigator.clipboard.writeText(resolved.direct_url);
+            btn.textContent = "Copied!";
+            setTimeout(() => { btn.textContent = "Copy URL"; }, 1500);
+          } catch (e) {
+            alert(e.message);
+          }
+        });
+
+        const subBtn = tr.querySelector(".dl-sub-btn");
+        if (subBtn) {
+          subBtn.addEventListener("click", async () => {
+            const epPrefix = `EP${String(ep.num).padStart(2, "0")}`;
+            for (const sub of ep.subs || []) {
+              await downloadSubtitleToPc(sub, epPrefix);
+            }
+          });
+        }
+
+        tbody.appendChild(tr);
+      }
+    }
+
+    async function inspectTarget(targetVal, platformVal = "") {
+      const errEl = document.getElementById("inspect-error");
+      errEl.textContent = "";
+      const btn = document.getElementById("inspect-btn");
+      btn.disabled = true;
+      btn.textContent = "Loading...";
+      try {
+        const res = await apiPost("/api/info", {
+          target: targetVal,
+          platform: platformVal || null,
+          auth: getActiveAuthPayload(),
+        });
+        const series = await res.json();
+        renderSeries(series);
+      } catch (e) {
+        errEl.textContent = e.message;
+      } finally {
+        btn.disabled = false;
+        btn.textContent = "Inspect";
+      }
+    }
+
+    document.getElementById("inspect-btn").addEventListener("click", () => {
+      const target = document.getElementById("target-input").value.trim();
+      const platform = document.getElementById("platform-select").value;
+      if (target) inspectTarget(target, platform);
+    });
+
+    document.getElementById("select-all-check").addEventListener("change", (ev) => {
+      document.querySelectorAll(".ep-check").forEach((c) => { c.checked = ev.target.checked; });
+    });
+
+    document.getElementById("select-free-btn").addEventListener("click", () => {
+      const freeNums = new Set((currentSeries?.episodes || []).filter((e) => !e.locked).map((e) => String(e.num)));
+      document.querySelectorAll(".ep-check").forEach((c) => { c.checked = freeNums.has(c.dataset.num); });
+    });
+
+    document.getElementById("clear-sel-btn").addEventListener("click", () => {
+      document.querySelectorAll(".ep-check").forEach((c) => { c.checked = false; });
+    });
+
+    document.getElementById("apply-range-btn").addEventListener("click", () => {
+      const raw = document.getElementById("range-input").value.trim();
+      if (!raw || !currentSeries) return;
+      const picked = new Set();
+      for (const part of raw.split(",")) {
+        const p = part.trim();
+        if (!p) continue;
+        if (p.includes("-")) {
+          const [a, b] = p.split("-", 2);
+          const start = parseInt(a, 10);
+          const end = b ? parseInt(b, 10) : currentSeries.episodes.length;
+          for (let i = start; i <= end; i++) picked.add(String(i));
+        } else {
+          picked.add(String(parseInt(p, 10)));
+        }
+      }
+      document.querySelectorAll(".ep-check").forEach((c) => { c.checked = picked.has(c.dataset.num); });
+    });
+
+    document.getElementById("pick-dir-btn").addEventListener("click", async () => {
+      if (!window.showDirectoryPicker) {
+        alert("Your browser does not support folder selection (Chrome/Edge desktop only). Standard downloads will still work.");
+        return;
+      }
+      try {
+        pickedDirHandle = await window.showDirectoryPicker({ mode: "readwrite" });
+        document.getElementById("dir-label").textContent = `Saving into folder: ${pickedDirHandle.name}`;
+      } catch {}
+    });
+
+    function getSelectedEpisodes() {
+      const selectedNums = new Set(
+        Array.from(document.querySelectorAll(".ep-check:checked")).map((c) => Number(c.dataset.num))
+      );
+      return (currentSeries?.episodes || []).filter((ep) => selectedNums.has(ep.num));
+    }
+
+    async function runBatchDownload(targets) {
+      if (!targets.length) {
+        alert("Select at least one episode.");
+        return;
+      }
+
+      const statusBox = document.getElementById("batch-status");
+      const progressBar = document.getElementById("batch-progress");
+      const logBox = document.getElementById("batch-log");
+      statusBox.classList.remove("hidden");
+      logBox.textContent = "";
+      progressBar.style.width = "0%";
+
+      const includeSubs = document.getElementById("dl-subs-check").checked;
+      const btn = document.getElementById("batch-dl-btn");
+      const allBtn = document.getElementById("download-all-free-btn");
+      btn.disabled = true;
+      allBtn.disabled = true;
+
+      for (let i = 0; i < targets.length; i++) {
+        const ep = targets[i];
+        try {
+          appendLog(`[*] Starting EP${String(ep.num).padStart(2, "0")}...`);
+          await downloadEpisodeToPc(ep, includeSubs);
+          appendLog(`[+] Done EP${String(ep.num).padStart(2, "0")}`);
+          if (!pickedDirHandle && i + 1 < targets.length) {
+            await new Promise((r) => setTimeout(r, 700));
+          }
+        } catch (e) {
+          appendLog(`[x] Failed EP${String(ep.num).padStart(2, "0")}: ${e.message}`);
+        }
+        progressBar.style.width = `${Math.round(((i + 1) / targets.length) * 100)}%`;
+      }
+      btn.disabled = false;
+      allBtn.disabled = false;
+      appendLog("[✔] Batch finished.");
+    }
+
+    document.getElementById("batch-dl-btn").addEventListener("click", async () => {
+      if (!currentSeries) return;
+      await runBatchDownload(getSelectedEpisodes());
+    });
+
+    document.getElementById("download-all-free-btn").addEventListener("click", async () => {
+      if (!currentSeries) return;
+      const freeEps = (currentSeries.episodes || []).filter((e) => !e.locked);
+      const freeNums = new Set(freeEps.map((e) => String(e.num)));
+      document.querySelectorAll(".ep-check").forEach((c) => { c.checked = freeNums.has(c.dataset.num); });
+      if (canProxyDownload && !pickedDirHandle && freeEps.length > 1) {
+        triggerZipDownload(freeEps);
+      } else {
+        await runBatchDownload(freeEps);
+      }
+    });
+
+    function triggerZipDownload(targets) {
+      if (!currentSeries || !targets.length) {
+        alert("Select at least one episode.");
+        return;
+      }
+      const validTargets = targets.filter((ep) => !ep.direct_url || !isHlsUrl(ep.direct_url));
+      if (!validTargets.length) {
+        alert("No MP4 episodes available for ZIP download (HLS .m3u8 streams must be downloaded individually or via CLI).");
+        return;
+      }
+      const statusBox = document.getElementById("batch-status");
+      statusBox.classList.remove("hidden");
+      appendLog(`[*] Starting streaming ZIP download for ${validTargets.length} episodes...`);
+
+      const payload = {
+        series_name: currentSeries.name || "Drama",
+        platform: currentSeries.platform || null,
+        include_subs: document.getElementById("dl-subs-check").checked,
+        auth: getActiveAuthPayload(),
+        episodes: validTargets.map((ep) => ({
+          num: ep.num,
+          title: ep.title,
+          url: ep.url,
+          direct_url: ep.direct_url,
+          extra: ep.extra || {},
+          subs: ep.subs || [],
+        })),
+      };
+
+      const form = document.createElement("form");
+      form.method = "POST";
+      form.action = "/api/download-zip";
+      const input = document.createElement("input");
+      input.type = "hidden";
+      input.name = "payload";
+      input.value = JSON.stringify(payload);
+      form.appendChild(input);
+      document.body.appendChild(form);
+      form.submit();
+      form.remove();
+    }
+
+    document.getElementById("batch-zip-btn").addEventListener("click", () => {
+      if (!currentSeries) return;
+      triggerZipDownload(getSelectedEpisodes());
+    });
+
+    document.getElementById("cat-search-btn").addEventListener("click", async () => {
+      const errEl = document.getElementById("cat-error");
+      const grid = document.getElementById("cat-grid");
+      errEl.textContent = "";
+      grid.innerHTML = "Loading...";
+      try {
+        const platform = document.getElementById("cat-platform").value;
+        const query = document.getElementById("cat-query").value.trim();
+        const page = Number(document.getElementById("cat-page").value || 1);
+        const res = await apiPost("/api/catalog", {
+          platform,
+          page,
+          query: query || null,
+          auth: getActiveAuthPayload(),
+        });
+        const data = await res.json();
+        grid.innerHTML = "";
+        for (const item of data.items || []) {
+          const card = document.createElement("div");
+          card.className = "catalog-card";
+          card.innerHTML = `
+            ${item.cover ? `<img src="${item.cover}" alt="${item.name}" />` : ""}
+            <strong>${item.name}</strong>
+            <div class="hint" style="margin:0;">${item.episodes || 0} eps | ID: ${item.id}</div>
+            <button class="small">Inspect</button>
+          `;
+          card.querySelector("button").addEventListener("click", () => {
+            const target = item.link || `${platform}:${item.id}`;
+            document.getElementById("target-input").value = target;
+            document.getElementById("platform-select").value = platform;
+            document.querySelector('[data-tab="inspect"]').click();
+            inspectTarget(target, platform);
+          });
+          grid.appendChild(card);
+        }
+        if (!(data.items || []).length) grid.innerHTML = "<p class='hint'>No catalog items found.</p>";
+      } catch (e) {
+        grid.innerHTML = "";
+        errEl.textContent = e.message;
+      }
+    });
+
+    document.getElementById("auth-file").addEventListener("change", async (ev) => {
+      const file = ev.target.files?.[0];
+      if (!file) return;
+      uploadedCookiesText = await file.text();
+      document.getElementById("auth-file-status").textContent = `Loaded ${file.name} (${uploadedCookiesText.length} chars)`;
+    });
+
+    document.getElementById("save-auth-btn").addEventListener("click", () => {
+      const msg = document.getElementById("auth-msg");
+      msg.textContent = "";
+      const headers = {};
+      for (const line of document.getElementById("auth-headers").value.split("\n")) {
+        const trimmed = line.trim();
+        if (!trimmed) continue;
+        const idx = trimmed.indexOf(":");
+        if (idx === -1) {
+          msg.textContent = `Invalid header line (expected Name: Value): ${trimmed}`;
+          return;
+        }
+        headers[trimmed.slice(0, idx).trim()] = trimmed.slice(idx + 1).trim();
+      }
+
+      let platform_headers = {};
+      const rawPlat = document.getElementById("auth-platform-headers").value.trim();
+      if (rawPlat) {
+        try {
+          platform_headers = JSON.parse(rawPlat);
+        } catch (e) {
+          msg.textContent = `Invalid Per-Platform Headers JSON: ${e.message}`;
+          return;
+        }
+      }
+
+      const state = {
+        cookies_text: uploadedCookiesText || null,
+        cookie_header: document.getElementById("auth-cookie-header").value.trim() || null,
+        headers,
+        platform_headers,
+        goodbos_token: document.getElementById("auth-goodbos-token").value.trim() || null,
+      };
+      localStorage.setItem(AUTH_KEY, JSON.stringify(state));
+      refreshAuthUI();
+      msg.textContent = "Saved in this browser.";
+    });
+
+    document.getElementById("clear-auth-btn").addEventListener("click", () => {
+      localStorage.removeItem(AUTH_KEY);
+      uploadedCookiesText = "";
+      document.getElementById("auth-file").value = "";
+      document.getElementById("auth-file-status").textContent = "";
+      document.getElementById("auth-cookie-header").value = "";
+      document.getElementById("auth-headers").value = "";
+      document.getElementById("auth-platform-headers").value = "";
+      document.getElementById("auth-goodbos-token").value = "";
+      document.getElementById("auth-msg").textContent = "Cleared.";
+      refreshAuthUI();
+    });
+
+    initPlatforms();
+    refreshAuthUI();
+  </script>
+</body>
+</html>

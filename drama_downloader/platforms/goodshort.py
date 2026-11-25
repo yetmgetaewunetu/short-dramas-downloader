@@ -35,7 +35,7 @@ class GoodShortPlatform(BasePlatform):
         if not book_id:
             raise ValueError(f"Could not extract GoodShort book ID from URL: {url}")
 
-        headers = {"User-Agent": "okhttp/4.10.0", "x-token": GOODBOS_TOKEN}
+        headers = {"User-Agent": "okhttp/4.10.0", "x-token": self.goodbos_token}
 
         name = "GoodShort Drama"
         cover = ""
@@ -57,7 +57,7 @@ class GoodShortPlatform(BasePlatform):
         episodes: List[Episode] = []
         try:
             resp = self.http.get(
-                f"{self.BASE_URL}/chapters/{book_id}?lang=en&code={GOODBOS_TOKEN}",
+                f"{self.BASE_URL}/chapters/{book_id}?lang=en&code={self.goodbos_token}",
                 headers=headers,
             )
             if resp.status_code == 200:
@@ -119,8 +119,8 @@ class GoodShortPlatform(BasePlatform):
 
         try:
             resp = self.http.get(
-                f"{self.BASE_URL}/video/{book_id}/{episode.num}?lang=en&code={GOODBOS_TOKEN}",
-                headers={"User-Agent": "okhttp/4.10.0", "x-token": GOODBOS_TOKEN},
+                f"{self.BASE_URL}/video/{book_id}/{episode.num}?lang=en&code={self.goodbos_token}",
+                headers={"User-Agent": "okhttp/4.10.0", "x-token": self.goodbos_token},
             )
             if resp.status_code == 200:
                 data = resp.json().get("data", {})

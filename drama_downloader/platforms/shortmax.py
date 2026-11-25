@@ -47,7 +47,7 @@ class ShortMaxPlatform(BasePlatform):
         if not sm_key:
             raise ValueError(f"Could not read ShortMax drama ID from: {url}")
 
-        params = {"lang": "en", "code": GOODBOS_TOKEN}
+        params = {"lang": "en", "code": self.goodbos_token}
         resp = self.http.get(f"{self.BASE_URL}/alleps/{sm_key}", params=params)
         if resp.status_code != 200:
             raise ValueError(f"ShortMax API error: HTTP {resp.status_code}")
@@ -100,7 +100,7 @@ class ShortMaxPlatform(BasePlatform):
         category: Optional[str] = None,
     ) -> CatalogResult:
         try:
-            params = {"lang": "en", "code": GOODBOS_TOKEN, "page": page, "size": 30}
+            params = {"lang": "en", "code": self.goodbos_token, "page": page, "size": 30}
             endpoint = "/search" if query else "/browse"
             if query:
                 params["keyword"] = query

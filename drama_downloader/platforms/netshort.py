@@ -113,7 +113,7 @@ class NetShortPlatform(BasePlatform):
         try:
             resp = self.http.get(
                 f"{self.BASE_URL}/watch/{ns_key}/{ns_ep}",
-                params={"code": GOODBOS_TOKEN, "lang": "en"},
+                params={"code": self.goodbos_token, "lang": "en"},
             )
             if resp.status_code == 200:
                 data = resp.json().get("data") or {}

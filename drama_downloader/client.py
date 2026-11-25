@@ -9,6 +9,7 @@ from typing import Any, Dict, Optional
 import requests
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
+from .auth import AuthConfig
 
 logger = logging.getLogger("drama_downloader.client")
 
@@ -28,10 +29,12 @@ class HttpClient:
         timeout: int = 15,
         max_retries: int = 3,
         verify_ssl: bool = True,
+        auth: Optional[AuthConfig] = None,
     ):
         self.timeout = timeout
         self.verify_ssl = verify_ssl
         self.session = requests.Session()
+        self.auth: Optional[AuthConfig] = None
 
         headers = {
             "User-Agent": DEFAULT_UA,
@@ -52,6 +55,23 @@ class HttpClient:
         self.session.mount("http://", adapter)
         self.session.mount("https://", adapter)
 
+        if auth is not None:
+            self.configure_auth(auth)
+
+    def configure_auth(self, auth: Optional[AuthConfig]) -> None:
+        """Applies (or clears) optional AuthConfig on this client's session."""
+        self.auth = auth
+        if auth is not None and not auth.is_empty():
+            auth.apply_to_session(self.session)
+
+    def _merge_headers(self, url: str, headers: Optional[Dict[str, str]]) -> Optional[Dict[str, str]]:
+        if not self.auth or self.auth.is_empty():
+            return headers
+        merged = self.auth.headers_for_url(url)
+        if headers:
+            merged.update(headers)
+        return merged or None
+
     def get(
         self,
         url: str,
@@ -64,7 +84,7 @@ class HttpClient:
         return self.session.get(
             url,
             params=params,
-            headers=headers,
+            headers=self._merge_headers(url, headers),
             timeout=t,
             verify=self.verify_ssl,
             stream=stream,
@@ -94,7 +114,7 @@ class HttpClient:
             url,
             data=data,
             json=json,
-            headers=headers,
+            headers=self._merge_headers(url, headers),
             timeout=t,
             verify=self.verify_ssl,
         )
